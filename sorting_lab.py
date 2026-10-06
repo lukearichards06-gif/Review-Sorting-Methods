@@ -1,17 +1,14 @@
-"""
-Sorting Algorithms Visualization Lab
 
-Complete the TODO sections.
-
-Do not use list.sort() or sorted() to perform the sorting.
-"""
 
 import random
 import time
 import platform
 import subprocess
 import matplotlib.pyplot as plt
-
+import os
+import math
+import struct
+import tempfile
 
 # ------------------------------------------------------------
 # Settings
@@ -30,36 +27,85 @@ HIGH_FREQUENCY = 1200
 # Sound Functions
 # ------------------------------------------------------------
 
+
 def value_to_frequency(value):
-    """
-    Convert a list value into a frequency.
+    clamped_val = max(MIN_VALUE, min(MAX_VALUE, value))
+    normalized = (clamped_val - MIN_VALUE) / (MAX_VALUE - MIN_VALUE)
+    return LOW_FREQUENCY + normalized * (HIGH_FREQUENCY - LOW_FREQUENCY)
 
-    TODO:
-        Map values from MIN_VALUE through MAX_VALUE
-        into frequencies from LOW_FREQUENCY through HIGH_FREQUENCY.
 
-        Smaller values should produce lower pitches.
-        Larger values should produce higher pitches.
-    """
-    pass
+
+
 
 
 def play_value_sound(value):
-    """
-    Play a short sound whose pitch depends on value.
+    if not SOUND_ENABLED:
+        return
+    freq = value_to_frequency(value)
+    duration_sec = 0.15
+    sample_rate = 44100
 
-    TODO:
-        1. Return immediately if SOUND_ENABLED is False.
-        2. Convert value to a frequency using value_to_frequency().
-        3. Play a short sound using an appropriate method for
-           the current operating system.
-        4. Make sure sound errors do not crash the program.
+    try:
+        os_name = platform.system()
 
-    HINT:
-        platform.system() can help determine whether the
-        computer is running Windows, macOS, or Linux/Unix.
-    """
-    pass
+        if os_name == "Windows":
+            import winsound
+
+            winsound.Beep(int(freq), int(duration_sec * 1000))
+
+        elif os_name == "Darwin":  
+            num_samples = int(sample_rate * duration_sec)
+            pcm_data = bytearray()
+            for i in range(num_samples):
+                sample = int(
+                    32767 * 0.3 * math.sin(2 * math.pi * freq * i / sample_rate)
+                )
+                pcm_data.extend(struct.pack("<h", sample))
+            data_size = len(pcm_data)
+            header = struct.pack(
+                "<4sI4s4sIHHIIHH4sI",
+                b"RIFF",
+                36 + data_size,
+                b"WAVE",
+                b"fmt ",
+                16,
+                1,
+                1,
+                sample_rate,
+                sample_rate * 2,
+                2,
+                16,
+                b"data",
+                data_size,
+            )
+            with tempfile.NamedTemporaryFile(
+                suffix=".wav", delete=False
+            ) as temp_wav:
+                temp_wav.write(header + pcm_data)
+                temp_wav_path = temp_wav.name
+
+            try:
+                subprocess.run(
+                    ["afplay", temp_wav_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            finally:
+                if os.path.exists(temp_wav_path):
+                    os.remove(temp_wav_path)
+
+        elif os_name == "Linux":
+            subprocess.run(
+                ["aplay", "-q"],
+                input=pcm_data,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+
+    except Exception:
+        pass
 
 
 # ------------------------------------------------------------
@@ -67,13 +113,9 @@ def play_value_sound(value):
 # ------------------------------------------------------------
 
 def generate_list(size=DEFAULT_LIST_SIZE):
-    """
-    Return a list containing 'size' random integers.
+    mylist = [random.randint(MIN_VALUE, MAX_VALUE) for i in range(size)]
+    return mylist
 
-    TODO:
-        Generate random integers between MIN_VALUE and MAX_VALUE.
-    """
-    pass
 
 
 def draw_list(values, title="Sorting"):
@@ -99,146 +141,206 @@ def draw_list(values, title="Sorting"):
 # ------------------------------------------------------------
 
 def selection_sort(values):
-    """
-    Sort values using Selection Sort.
 
-    TODO:
-        1. Move through each position in the list.
-        2. Find the smallest value in the unsorted portion.
-        3. Swap it into the correct position.
-        4. Call draw_list() after an important change.
-        5. Call play_value_sound() for a meaningful value.
-    """
-    pass
+    n = len(values)
+
+    for i in range(n):
+        min = i
+
+        for j in range(i + 1, n):
+            if values[j] < values[min]:
+                min = j
+
+        values[i], values[min] = values[min], values[i]
+
+        draw_list(values)
+        play_value_sound(values[i])
+
+    draw_list(values)
+    return values
 
 
 def bubble_sort(values):
-    """
-    Sort values using Bubble Sort.
 
-    TODO:
-        Compare adjacent values and swap values that are
-        out of order.
+    n = len(values)
+    for i in range(n):
+        swapped = False
 
-        Call draw_list() after each swap.
-        Also call play_value_sound() for one of the swapped values.
-    """
-    pass
-
+        for j in range(0, n - i - 1 ):
+            if values[j] > values[j + 1]:
+                values[j] , values[j + 1] = values[j + 1], values[j]
+                draw_list(values)
+                play_value_sound(values)
+                swapped = True
+        if not swapped:
+            break
+        
 
 def insertion_sort(values):
-    """
-    Sort values using Insertion Sort.
 
-    TODO:
-        Insert each new value into the correct position
-        within the already-sorted portion of the list.
+    n = len(values)
 
-        Call draw_list() as values move.
-        Play the value currently being inserted.
-    """
-    pass
+    for i in range(1, n):
+        current = values[i]
+        j = i - 1
+
+        while j >= 0 and values[j] > current:
+            values[j + 1] = values[j]
+            j -= 1
+
+        values[j + 1] = current
+        draw_list(values)
+        play_value_sound(values[i])
+    draw_list(values)
+    return values
 
 
 def merge(left, right):
-    """
-    Merge two already-sorted lists.
+    newlist = []
+    i = 0
+    j = 0
 
-    TODO:
-        Return one sorted list containing all values
-        from left and right.
-    """
-    pass
+    while i < len(left) and j < len(right):
+        if left[i] < right[j]:
+            newlist.append(left[i])
+            i += 1
+        else:
+            newlist.append(right[j])
+            j += 1
+
+    newlist += left[i:] + right[j:]
+
+    return newlist
 
 
 def merge_sort(values):
-    """
-    Sort values using Merge Sort.
+    n = len(values)
 
-    TODO:
-        Implement Merge Sort recursively.
+    if n <= 1:
+        return values
 
-    NOTE:
-        Merge Sort is a little different from the other algorithms
-        because recursive calls often create smaller lists.
+    half = n // 2
 
-        You may modify this function's parameters or create helper
-        functions if needed to make the visualization work.
+    left = values[0:half]
+    right = values[half:]
 
-        Play each value as it is written back into the main list.
-    """
-    pass
+    left = merge_sort(left)
+    right = merge_sort(right)
+
+    merged = merge(left, right)
+
+    draw_list(merged)
+
+    return merged
 
 
 def quick_sort(values):
-    """
-    OPTIONAL CHALLENGE
 
-    Sort values using Quick Sort.
+    n = len(values)
 
-    You may create helper functions such as partition().
+    if n <= 1:
+        return values
 
-    TODO:
-        Implement Quick Sort and visualize important steps.
-        Play the pivot or a value involved in a swap.
-    """
-    pass
+    point = n // 2
+    pivot = values[point]
 
+    left = []
+    right = []
 
-# ------------------------------------------------------------
+    for i in range(n):
+        if i == point:
+            continue
+
+        if values[i] < pivot:
+            left.append(values[i])
+        else:
+            right.append(values[i])
+
+    left = quick_sort(left)
+    right = quick_sort(right)
+
+    sorted_values = left + [pivot] + right
+
+    for i in range(len(sorted_values)):
+        values[i] = sorted_values[i]
+        draw_list(values)
+        play_value_sound(values[i])
+
+    return values
+# -------------------------------
+# -----------------------------
 # Algorithm Explanations / Pseudocode
 # ------------------------------------------------------------
 
 def print_selection_info():
-    """
-    TODO:
-        Print:
-        1. A short explanation of Selection Sort in your own words.
-        2. Pseudocode for Selection Sort.
-    """
-    pass
+
+    print("Start with the first index and make it the minimum. Then look to the right and compare each value. If you find a value that is smaller than the current minimum, make that value the new minimum. Continue looking until you reach the end of the list. Then swap the minimum value with the value at the starting index.")
+
+    print("1. Find the length of the list.")
+    print("2. Start at the first position.")
+    print("3. Make the starting position the minimum.")
+    print("4. Look through all the values to the right.")
+    print("5. If you find a smaller value, make its index the new minimum.")
+    print("6. Once you reach the end, swap the minimum with the starting position.")
+    print("7. Move to the next position and repeat.")
 
 
+    
 def print_bubble_info():
-    """
-    TODO:
-        Print:
-        1. A short explanation of Bubble Sort in your own words.
-        2. Pseudocode for Bubble Sort.
-    """
-    pass
+
+    print("Start the beggining of the list and compare the number next to if. If it needs to be swapped then do it, if not move on the next. Always comparing i to i + 1.")
+    print("1. Start at the first position.")
+    print("2. Compare the current value with the value next to it.")
+    print("3. If the current value is larger, swap the two values.")
+    print("4. Move to the next position.")
+    print("5. Continue until you reach the end of the list.")
+    print("6. Repeat the process because the largest unsorted value will move to the end.")
+    print("7. Continue until the list is sorted.")
 
 
 def print_insertion_info():
-    """
-    TODO:
-        Print:
-        1. A short explanation of Insertion Sort in your own words.
-        2. Pseudocode for Insertion Sort.
-    """
-    pass
+
+    print("Start at the second index and treat the value there as the current value. Compare it with the values to its left. If a value to the left is larger, shift that value one position to the right. Continue moving left until you find the correct position for the current value. Insert the current value there, then move to the next index and repeat until the list is sorted.")
+
+    print("1. Find the length of the list.")
+    print("2. Start at the second position because the first value is already considered sorted.")
+    print("3. Save the current value.")
+    print("4. Compare the current value with the values to its left.")
+    print("5. If a value to the left is larger, shift it one position to the right.")
+    print("6. Continue moving left until you find the correct position.")
+    print("7. Place the current value in that position.")
+    print("8. Move to the next position and repeat until the list is sorted.")
 
 
 def print_merge_info():
-    """
-    TODO:
-        Print:
-        1. A short explanation of Merge Sort in your own words.
-        2. Pseudocode for Merge Sort.
-    """
-    pass
+
+    print("Start by splitting the list into two smaller lists. Continue splitting each list in half until every list contains only one value. Then begin merging the smaller lists back together. Compare the first values of the two lists and place the smaller value into the new list. Continue comparing and adding values until both lists have been merged. Repeat this process until the entire list is sorted.")
+
+    print("1. Find the length of the list.")
+    print("2. If the list has one or zero values, it is already sorted.")
+    print("3. Split the list into two halves.")
+    print("4. Recursively split each half until each list contains one value.")
+    print("5. Compare the first values of the two lists.")
+    print("6. Add the smaller value to the new sorted list.")
+    print("7. Continue comparing values until one list is empty.")
+    print("8. Add the remaining values from the other list.")
+    print("9. Continue merging the lists until the entire list is sorted.")
 
 
 def print_quick_info():
-    """
-    OPTIONAL CHALLENGE
 
-    TODO:
-        Print:
-        1. A short explanation of Quick Sort in your own words.
-        2. Pseudocode for Quick Sort.
-    """
-    pass
+    print("Start by choosing one value as the pivot. Then look at every other value and separate them into two groups. Values smaller than the pivot go to the left, and values greater than or equal to the pivot go to the right. Recursively quick sort the left and right groups. Finally, combine the sorted left group, the pivot, and the sorted right group to create the sorted list.")
+
+    print("1. Find the length of the list.")
+    print("2. If the list has one or zero values, it is already sorted.")
+    print("3. Choose a value to use as the pivot.")
+    print("4. Create a left list and a right list.")
+    print("5. Compare each value to the pivot.")
+    print("6. Put values smaller than the pivot into the left list.")
+    print("7. Put values greater than or equal to the pivot into the right list.")
+    print("8. Recursively quick sort the left and right lists.")
+    print("9. Combine the sorted left list, the pivot, and the sorted right list.")
+    print("10. Return the sorted list.")
 
 
 def print_info_menu():
@@ -255,14 +357,6 @@ def print_info_menu():
 
 
 def algorithm_info_menu():
-    """
-    Display explanations and pseudocode for the sorting algorithms.
-
-    TODO:
-        Complete the menu logic below if your instructor asks you
-        to make changes or additions.
-    """
-
     while True:
 
         print_info_menu()
