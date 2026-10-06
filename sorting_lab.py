@@ -53,15 +53,21 @@ def play_value_sound(value):
 
             winsound.Beep(int(freq), int(duration_sec * 1000))
 
-        elif os_name == "Darwin":  
+
+        elif os_name == "Darwin":
             num_samples = int(sample_rate * duration_sec)
             pcm_data = bytearray()
+
             for i in range(num_samples):
                 sample = int(
-                    32767 * 0.3 * math.sin(2 * math.pi * freq * i / sample_rate)
+                    32767 * 0.3 * math.sin(
+                        2 * math.pi * freq * i / sample_rate
+                    )
                 )
                 pcm_data.extend(struct.pack("<h", sample))
+
             data_size = len(pcm_data)
+
             header = struct.pack(
                 "<4sI4s4sIHHIIHH4sI",
                 b"RIFF",
@@ -78,22 +84,21 @@ def play_value_sound(value):
                 b"data",
                 data_size,
             )
+
             with tempfile.NamedTemporaryFile(
                 suffix=".wav", delete=False
             ) as temp_wav:
                 temp_wav.write(header + pcm_data)
                 temp_wav_path = temp_wav.name
 
-            try:
-                subprocess.run(
-                    ["afplay", temp_wav_path],
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    check=False,
-                )
-            finally:
-                if os.path.exists(temp_wav_path):
-                    os.remove(temp_wav_path)
+            # Play the sound in the background
+            subprocess.Popen(
+                ["afplay", temp_wav_path],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+
 
         elif os_name == "Linux":
             subprocess.run(
@@ -145,13 +150,13 @@ def selection_sort(values):
     n = len(values)
 
     for i in range(n):
-        min = i
+        min_num= i
 
         for j in range(i + 1, n):
-            if values[j] < values[min]:
-                min = j
+            if values[j] < values[min_num]:
+                min_num = j
 
-        values[i], values[min] = values[min], values[i]
+        values[i], values[min_num] = values[min_num], values[i]
 
         draw_list(values)
         play_value_sound(values[i])
@@ -170,11 +175,13 @@ def bubble_sort(values):
             if values[j] > values[j + 1]:
                 values[j] , values[j + 1] = values[j + 1], values[j]
                 draw_list(values)
-                play_value_sound(values)
+                play_value_sound(values[j])
                 swapped = True
         if not swapped:
             break
-        
+    
+    draw_list(values)
+    return values
 
 def insertion_sort(values):
 
@@ -190,7 +197,7 @@ def insertion_sort(values):
 
         values[j + 1] = current
         draw_list(values)
-        play_value_sound(values[i])
+        play_value_sound(current)
     draw_list(values)
     return values
 
@@ -203,9 +210,11 @@ def merge(left, right):
     while i < len(left) and j < len(right):
         if left[i] < right[j]:
             newlist.append(left[i])
+            play_value_sound(left[i])
             i += 1
         else:
             newlist.append(right[j])
+            play_value_sound(right[j])
             j += 1
 
     newlist += left[i:] + right[j:]
